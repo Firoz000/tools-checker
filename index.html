@@ -1,1 +1,465 @@
-
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>গাড়ি চেকআপ রিপোর্ট - অটো JSON লোডার</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; height: 100vh; overflow: hidden; }
+        .app { display: flex; flex-direction: column; height: 100vh; width: 100%; }
+        .top-header { background: linear-gradient(135deg, #1e3c72, #2a5298); color: white; padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .top-header h1 { font-size: 1rem; }
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 280px; background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%); color: white; display: flex; flex-direction: column; overflow-y: auto; }
+        .sidebar-section { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.2); }
+        .section-title { font-size: 0.8rem; font-weight: bold; margin-bottom: 8px; }
+        .folder-status { background: rgba(255,255,255,0.2); padding: 4px; border-radius: 5px; font-size: 0.6rem; margin-top: 6px; text-align: center; word-break: break-all; }
+        .date-menu { flex: 1; overflow-y: auto; padding: 5px 0; }
+        .menu-item { padding: 8px 12px; cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent; display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; }
+        .menu-item:hover { background: rgba(255,255,255,0.1); }
+        .menu-item.active { background: rgba(255,255,255,0.2); border-left-color: #ffc107; }
+        .menu-item.selected-compare { background: rgba(255,193,7,0.3); border-left-color: #ffc107; }
+        .menu-count { background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 15px; font-size: 0.6rem; }
+        .delete-btn { background: rgba(220,53,69,0.8); border: none; color: white; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 0.55rem; margin-left: 8px; }
+        .right-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #f8f9fc; }
+        .bottom-menu-bar { background: white; padding: 8px 15px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border-top: 2px solid #1e3c72; border-bottom: 1px solid #e0e4e8; }
+        .compare-mode-btn { background: #ffc107; color: #856404; border: none; padding: 6px 18px; border-radius: 30px; cursor: pointer; font-weight: bold; font-size: 0.8rem; }
+        .compare-mode-btn.active-mode { background: #28a745; color: white; }
+        .submit-compare-btn { background: #dc3545; color: white; border: none; padding: 6px 20px; border-radius: 30px; cursor: pointer; font-weight: bold; font-size: 0.8rem; }
+        .compare-info { background: #e9ecef; padding: 5px 14px; border-radius: 30px; font-size: 0.7rem; font-weight: 500; }
+        .top-bar { background: white; padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid #e0e4e8; }
+        .active-info { background: #e9ecef; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; }
+        .search-box { padding: 5px 12px; border: 1px solid #ddd; border-radius: 30px; width: 200px; font-size: 0.7rem; }
+        .table-wrapper { flex: 1; overflow-x: auto; overflow-y: auto; padding: 10px; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; font-size: 0.7rem; min-width: 1750px; }
+        th { background: #1e3c72; color: white; padding: 8px 5px; position: sticky; top: 0; white-space: nowrap; }
+        td { border-bottom: 1px solid #e0e4e8; padding: 6px 5px; text-align: center; }
+        td.changed-cell { background-color: #000000 !important; color: #ffffff !important; }
+        .changed-cell .old-value-cross { color: #ffaaaa !important; text-decoration: line-through; background: #440000; padding: 2px 5px; border-radius: 4px; }
+        .changed-cell .new-value-highlight { background: #ffffff; color: #000000; padding: 2px 6px; border-radius: 15px; font-weight: bold; }
+        .status-yes { background: #28a745; color: white; padding: 3px 8px; border-radius: 20px; display: inline-block; font-size: 0.6rem; font-weight: bold; }
+        .status-no { background: #dc3545; color: white; padding: 3px 8px; border-radius: 20px; display: inline-block; font-size: 0.6rem; font-weight: bold; }
+        .status-other { background: #6c757d; color: white; padding: 3px 8px; border-radius: 20px; display: inline-block; font-size: 0.6rem; }
+        .tire-cell { background: #fff0db; font-weight: bold; }
+        .tire-badge { background: #ff9800; color: white; padding: 3px 8px; border-radius: 20px; font-size: 0.6rem; font-weight: bold; display: inline-block; }
+        .days-badge { background: #17a2b8; color: white; padding: 2px 6px; border-radius: 20px; font-size: 0.6rem; white-space: nowrap; }
+        .days-warning { background: #dc3545; color: white; padding: 2px 6px; border-radius: 20px; font-size: 0.6rem; }
+        .gap-badge { background: #6c757d; color: white; padding: 2px 6px; border-radius: 20px; font-size: 0.6rem; font-weight: bold; }
+        .gap-warning { background: #dc3545; color: white; padding: 2px 6px; border-radius: 20px; font-size: 0.6rem; font-weight: bold; }
+        .url-link { background: #17a2b8; color: white; padding: 2px 6px; border-radius: 20px; text-decoration: none; font-size: 0.6rem; }
+        .no-data { text-align: center; padding: 40px; color: #6c757d; }
+        .change-summary { background: #dc3545; color: white; padding: 4px 12px; border-radius: 30px; font-size: 0.7rem; }
+        .debug-info { background: #f8d7da; color: #721c24; padding: 4px 10px; font-size: 0.6rem; margin: 3px 10px; border-radius: 6px; }
+        .selected-dates-badge { background: #28a745; color: white; padding: 4px 12px; border-radius: 30px; font-size: 0.7rem; }
+        .info-text { font-size: 0.6rem; margin-top: 5px; color: #ccc; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="top-header">
+        <h1>🚛 গাড়ি চেকআপ রিপোর্ট | বিল্ট-ইন JSON লিংক | চেকআপ রিপোর্ট ও তুলনা</h1>
+        <div id="changeSummary" class="change-summary" style="display:none;">0 পরিবর্তন</div>
+    </div>
+    <div class="main-layout">
+        <div class="sidebar">
+            <div class="sidebar-section">
+                <div class="section-title">📂 JSON ফাইল লোকেশন</div>
+                <div id="folderStatus" class="folder-status">⏳ JSON ফাইল লোড হচ্ছে...</div>
+                <div class="info-text">✅ JSON ফাইলের নাম হবে: YYYY-MM-DD.json</div>
+                <div class="info-text">📁 বর্তমান লিংক: <span id="currentUrlDisplay">সেট করা হয়নি</span></div>
+            </div>
+            <div class="sidebar-section">
+                <div class="section-title">📅 সংরক্ষিত রেকর্ড (তারিখ)</div>
+                <div class="date-menu" id="dateMenu">📭 লোড হচ্ছে...</div>
+            </div>
+        </div>
+        <div class="right-content">
+            <div class="top-bar">
+                <span class="active-info" id="activeDateInfo">কোন ডাটা নেই</span>
+                <div>🔍 <input type="text" id="searchInput" class="search-box" placeholder="আইডি বা গাড়ি নং"></div>
+            </div>
+            <div class="bottom-menu-bar">
+                <button class="compare-mode-btn" id="toggleCompareBtn">🔘 তুলনা মোড</button>
+                <button class="submit-compare-btn" id="submitCompareBtn">📊 তুলনা করুন</button>
+                <div class="compare-info" id="compareInfo">👈 প্রথমে তুলনা মোড অন করুন</div>
+                <div id="selectedDatesDisplay" class="selected-dates-badge" style="display:none;"></div>
+            </div>
+            <div id="debugPanel" class="debug-info" style="display:none;"></div>
+            <div class="table-wrapper">
+                <table id="dataTable">
+                    <thead><tr><th>ID</th><th>URL</th><th>Vehicle No</th><th>Lock</th><th>Jack</th><th>Wrench</th><th>Lever</th><th>Pipe</th><th>🔧 Tire</th><th>Book</th><th>Body</th><th>Lights</th><th>Tax</th><th>Fitness</th><th>Permit</th><th>Reg</th><th>RegAck</th><th>Adv1</th><th>Adv2</th><th>Cam</th><th>SIM</th><th>Device</th><th>GPS</th><th>SD</th><th>Last Update</th><th>Days Gap</th></tr></thead>
+                    <tbody id="tableBody"><tr><td colspan="27" class="no-data">লোড হচ্ছে...<\/td></td></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    // =====================================================
+    // 📌 এখানে আপনার JSON ফোল্ডারের লিংক সেট করুন 📌
+    // =====================================================
+    
+    // আপনার JSON ফোল্ডারের লিংক এখানে দিন:
+    const JSON_FOLDER_URL = "./data/";
+    
+    // আপনার যতগুলো JSON ফাইল আছে তাদের তারিখ এখানে লিখুন:
+    const AVAILABLE_DATES = ["2026-04-20", "2026-04-22", "2026-04-25"];
+    
+    // =====================================================
+    // নিচের কোড পরিবর্তন করার দরকার নেই
+    // =====================================================
+    
+    let allDataFiles = {};
+    let currentDate = null;
+    let currentData = [];
+    let compareModeActive = false;
+    let selectedOldDate = null, selectedNewDate = null;
+    let latestCompareResult = [];
+    
+    const BEFORE_TIRE_FIELDS = ['lock', 'jack', 'wrench', 'lever', 'pipe'];
+    const AFTER_TIRE_FIELDS = ['book', 'body', 'lights', 'tax', 'fitness', 'permit', 'reg', 'regAck', 'adv1', 'adv2', 'cam', 'sim', 'device', 'gps', 'sd'];
+    const ALL_CHECK_FIELDS = [...BEFORE_TIRE_FIELDS, ...AFTER_TIRE_FIELDS];
+    
+    function showDebug(msg) {
+        let panel = document.getElementById('debugPanel');
+        panel.style.display = 'block';
+        panel.innerHTML = '🔍 ' + msg;
+        setTimeout(() => panel.style.display = 'none', 3000);
+    }
+    
+    function calculateDaysGap(reportDateStr, lastUpdateStr) {
+        if (!reportDateStr || !lastUpdateStr || lastUpdateStr === '—') return '<span class="gap-badge">—</span>';
+        try {
+            let reportDate = new Date(reportDateStr);
+            let lastUpdate = new Date(lastUpdateStr);
+            if (isNaN(reportDate) || isNaN(lastUpdate)) return '<span class="gap-badge">Invalid</span>';
+            let diffTime = reportDate - lastUpdate;
+            let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays < 0) return `<span class="gap-badge">Future (${Math.abs(diffDays)})</span>`;
+            if (diffDays <= 7) return `<span class="gap-badge" style="background:#28a745;">${diffDays} days</span>`;
+            if (diffDays <= 30) return `<span class="gap-warning">⚠️ ${diffDays} days</span>`;
+            return `<span class="gap-warning" style="background:#b91c1c;">❗ ${diffDays} days</span>`;
+        } catch(e) { return '<span class="gap-badge">Error</span>'; }
+    }
+    
+    function saveToStorage() {
+        localStorage.setItem('vehicleAutoFolderData', JSON.stringify(allDataFiles));
+    }
+    
+    function formatVehicle(v) {
+        return {
+            id: v.id || v['Vehicle ID'] || v.ID || 'N/A',
+            url: v.url || v.URL || '',
+            num: v.num || v['vaical number'] || v['Vehicle No'] || '',
+            lock: convertToYesNo(v.lock ?? v.Lock),
+            jack: convertToYesNo(v.jack ?? v.Jack),
+            wrench: convertToYesNo(v.wrench ?? v.Wrench),
+            lever: convertToYesNo(v.lever ?? v.Lever),
+            pipe: convertToYesNo(v.pipe ?? v.Pipe),
+            tire: v.tire || v['Spare Tire Brand'] || v['Tire'] || 'Standard',
+            book: convertToYesNo(v.book ?? v['Service Book']),
+            body: convertToYesNo(v.body ?? v['Body Check']),
+            lights: convertToYesNo(v.lights ?? v['Lights OK']),
+            tax: convertToYesNo(v.tax ?? v['Tax Token Valid']),
+            fitness: convertToYesNo(v.fitness ?? v['Fitness Valid']),
+            permit: convertToYesNo(v.permit ?? v['Road Permit Valid']),
+            reg: convertToYesNo(v.reg ?? v['Registration OK']),
+            regAck: convertToYesNo(v.regAck ?? v['Reg Acknowledgement Slip']),
+            adv1: convertToYesNo(v.adv1 ?? v['Advertisement Part 1 OK']),
+            adv2: convertToYesNo(v.adv2 ?? v['Advertisement Part 2 OK']),
+            cam: convertToYesNo(v.cam ?? v['Camera OK']),
+            sim: convertToYesNo(v.sim ?? v['SIM OK']),
+            device: convertToYesNo(v.device ?? v['Device Running']),
+            gps: convertToYesNo(v.gps ?? v['GPS Live']),
+            sd: convertToYesNo(v.sd ?? v['SD Card OK']),
+            updated: v.updated || v['Last Updated'] || '—'
+        };
+    }
+    
+    function convertToYesNo(val) {
+        if(val===undefined || val===null) return '—';
+        let s = String(val).toUpperCase();
+        if(s==='YES' || s==='Y') return 'Y';
+        if(s==='NO' || s==='N') return 'N';
+        return val;
+    }
+    
+    function getStatusHtml(val) {
+        if(val === 'Y') return '<span class="status-yes">✓ YES</span>';
+        if(val === 'N') return '<span class="status-no">✗ NO</span>';
+        return `<span class="status-other">${val === '—' ? '—' : val}</span>`;
+    }
+    
+    function updateMenu() {
+        let container = document.getElementById('dateMenu');
+        let dates = Object.keys(allDataFiles).sort().reverse();
+        if (!dates.length) {
+            container.innerHTML = '<div style="padding:15px;">📭 কোনো JSON ডাটা নেই<br>লিংক চেক করুন</div>';
+            return;
+        }
+        let html = '';
+        dates.forEach(d => {
+            let cnt = allDataFiles[d].count || allDataFiles[d].data.length;
+            html += `<div class="menu-item" data-date="${d}"><div>📅 ${d}</div><div><span class="menu-count">${cnt}</span><button class="delete-btn" onclick="event.stopPropagation(); deleteFile('${d}')">🗑️</button></div></div>`;
+        });
+        container.innerHTML = html;
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if(e.target.classList.contains('delete-btn')) return;
+                let date = item.getAttribute('data-date');
+                if(compareModeActive) handleCompareSelection(date);
+                else loadDateData(date);
+            });
+        });
+        refreshHighlight();
+    }
+    
+    function refreshHighlight() {
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.classList.remove('selected-compare');
+            let d = item.getAttribute('data-date');
+            if(compareModeActive && (d === selectedOldDate || d === selectedNewDate)) item.classList.add('selected-compare');
+        });
+    }
+    
+    function handleCompareSelection(date) {
+        if(!compareModeActive) return;
+        if(selectedOldDate === null) {
+            selectedOldDate = date;
+            document.getElementById('selectedDatesDisplay').style.display = 'inline-block';
+            document.getElementById('selectedDatesDisplay').innerHTML = `📅 পুরনো: ${selectedOldDate} | নতুন: নির্বাচন করুন`;
+            document.getElementById('compareInfo').innerHTML = `✅ পুরনো: ${selectedOldDate} → এখন নতুন তারিখ ক্লিক করুন`;
+        } else if(selectedNewDate === null && date !== selectedOldDate) {
+            selectedNewDate = date;
+            document.getElementById('selectedDatesDisplay').innerHTML = `📅 পুরনো: ${selectedOldDate} | নতুন: ${selectedNewDate}`;
+            document.getElementById('compareInfo').innerHTML = `✅ প্রস্তুত! "তুলনা করুন" বাটন চাপুন`;
+        } else { showDebug('ইতিমধ্যে দুটি তারিখ নির্বাচিত। তুলনা মোড বন্ধ করে পুনরায় চেষ্টা করুন।'); }
+        refreshHighlight();
+    }
+    
+    function submitComparison() {
+        if(!compareModeActive) { alert('দয়া করে তুলনা মোড অন করুন'); return; }
+        if(!selectedOldDate || !selectedNewDate) { alert('দুটি তারিখ নির্বাচন করুন (পুরনো ও নতুন)'); return; }
+        if(selectedOldDate === selectedNewDate) { alert('ভিন্ন তারিখ নির্বাচন করুন'); return; }
+        performCompare(selectedOldDate, selectedNewDate);
+    }
+    
+    function performCompare(oldD, newD) {
+        let oldArr = allDataFiles[oldD]?.data || [];
+        let newArr = allDataFiles[newD]?.data || [];
+        if(!oldArr.length || !newArr.length) { alert('কোনো এক তারিখের ডাটা নেই!'); return; }
+        let oldMap = new Map(oldArr.map(v=>[v.id, v]));
+        let newMap = new Map(newArr.map(v=>[v.id, v]));
+        let changesList = [], totalChanges=0;
+        for(let [id, newV] of newMap) {
+            let oldV = oldMap.get(id);
+            if(oldV) {
+                let changes = {};
+                let has = false;
+                for(let f of ALL_CHECK_FIELDS) {
+                    let ov = oldV[f] || '—', nv = newV[f] || '—';
+                    if(ov !== nv) { changes[f] = {old: ov, new: nv}; has=true; totalChanges++; }
+                }
+                let oldTire = oldV.tire || '—', newTire = newV.tire || '—';
+                if(oldTire !== newTire) { changes['tire'] = {old: oldTire, new: newTire}; has=true; totalChanges++; }
+                if(has) changesList.push({id, num: newV.num, url: newV.url, updated: newV.updated, changes, newData: newV});
+            } else {
+                let changes = { _new_entry: {old: "নতুন যুক্ত", new: "যোগ হয়েছে"} };
+                totalChanges++;
+                changesList.push({id, num: newV.num, url: newV.url, updated: newV.updated, changes, newData: newV, isNew: true});
+            }
+        }
+        latestCompareResult = changesList;
+        document.getElementById('changeSummary').style.display = 'inline-block';
+        document.getElementById('changeSummary').innerHTML = `${changesList.length} টি গাড়ি পরিবর্তিত, ${totalChanges} পরিবর্তন`;
+        if(changesList.length===0) showNoChangeMsg(oldD, newD);
+        else renderCompareTable(oldD, newD);
+    }
+    
+    function showNoChangeMsg(oldD, newD) {
+        document.getElementById('tableBody').innerHTML = `<tr><td colspan="27" class="no-data">✅ কোন পরিবর্তন নেই! (${oldD} → ${newD})</td></tr>`;
+        document.getElementById('activeDateInfo').innerHTML = `তুলনা: কোনো পরিবর্তন নেই`;
+    }
+    
+    function renderCompareTable(oldD, newD) {
+        let tbody = document.getElementById('tableBody');
+        document.getElementById('activeDateInfo').innerHTML = `🔄 পরিবর্তিত গাড়ি (${oldD} → ${newD}) : ${latestCompareResult.length}`;
+        let html = '';
+        for(let v of latestCompareResult) {
+            html += `<tr style="background:#f5f5f5;">`;
+            html += `<td><strong>${v.id}</strong></td>`;
+            html += `<td>${v.url ? `<a href="${v.url}" class="url-link">🔗</a>` : '—'}</td>`;
+            html += `<td><strong>${v.num || '—'}</strong></td>`;
+            for(let f of BEFORE_TIRE_FIELDS) {
+                let ch = v.changes[f];
+                if(ch) {
+                    let oldShow = ch.old === 'Y' ? 'YES' : (ch.old === 'N' ? 'NO' : ch.old);
+                    let newShow = ch.new === 'Y' ? 'YES' : (ch.new === 'N' ? 'NO' : ch.new);
+                    html += `<td class="changed-cell"><span class="old-value-cross">${oldShow}</span> <span class="new-value-highlight">${newShow}</span></td>`;
+                } else {
+                    let val = v.newData[f] || '—';
+                    html += `<td>${getStatusHtml(val)}</td>`;
+                }
+            }
+            let tireCh = v.changes['tire'];
+            if(tireCh) {
+                html += `<td class="changed-cell"><span class="old-value-cross">🔧 ${tireCh.old}</span> <span class="new-value-highlight">🚛 ${tireCh.new}</span></td>`;
+            } else {
+                let tireVal = v.newData.tire || '—';
+                html += `<td class="tire-cell"><span class="tire-badge">🔧 ${tireVal}</span></td>`;
+            }
+            for(let f of AFTER_TIRE_FIELDS) {
+                let ch = v.changes[f];
+                if(ch) {
+                    let oldShow = ch.old === 'Y' ? 'YES' : (ch.old === 'N' ? 'NO' : ch.old);
+                    let newShow = ch.new === 'Y' ? 'YES' : (ch.new === 'N' ? 'NO' : ch.new);
+                    html += `<td class="changed-cell"><span class="old-value-cross">${oldShow}</span> <span class="new-value-highlight">${newShow}</span></td>`;
+                } else {
+                    let val = v.newData[f] || '—';
+                    html += `<td>${getStatusHtml(val)}</td>`;
+                }
+            }
+            let upd = v.updated || '—';
+            let daysGap = calculateDaysGap(newD, upd);
+            html += `<td><span class="days-badge">📅 ${upd}</span></td>`;
+            html += `<td>${daysGap}</td>`;
+            html += `</tr>`;
+        }
+        tbody.innerHTML = html;
+    }
+    
+    function loadDateData(date) {
+        if(compareModeActive) { showDebug('তুলনা মোড সক্রিয়, সাধারণ ভিউ দেখতে তুলনা মোড বন্ধ করুন'); return; }
+        currentDate = date;
+        currentData = [...(allDataFiles[date]?.data || [])];
+        document.querySelectorAll('.menu-item').forEach(i=>i.classList.remove('active'));
+        let activeItem = document.querySelector(`.menu-item[data-date="${date}"]`);
+        if(activeItem) activeItem.classList.add('active');
+        document.getElementById('activeDateInfo').innerHTML = `📅 ${date} (${currentData.length} গাড়ি)`;
+        renderNormalTable();
+        latestCompareResult = [];
+        document.getElementById('changeSummary').style.display = 'none';
+    }
+    
+    function renderNormalTable() {
+        let data = [...currentData];
+        let search = document.getElementById('searchInput').value.toLowerCase();
+        if(search) data = data.filter(v=> String(v.id).toLowerCase().includes(search) || String(v.num).toLowerCase().includes(search));
+        let tbody = document.getElementById('tableBody');
+        if(!data.length) { tbody.innerHTML = `<td><td colspan="27" class="no-data">🔍 কোনো গাড়ি পাওয়া যায়নি</td></tr>`; return; }
+        let html = '';
+        for(let v of data) {
+            html += `<tr>`;
+            html += `<td><strong>${v.id || '—'}</strong></td>`;
+            html += `<td>${v.url ? `<a href="${v.url}" class="url-link">🔗</a>` : '—'}</td>`;
+            html += `<td><strong>${v.num || '—'}</strong></td>`;
+            for(let f of BEFORE_TIRE_FIELDS) { html += `<td>${getStatusHtml(v[f] || '—')}</td>`; }
+            html += `<td class="tire-cell"><span class="tire-badge">🔧 ${v.tire || '—'}</span></td>`;
+            for(let f of AFTER_TIRE_FIELDS) { html += `<td>${getStatusHtml(v[f] || '—')}</td>`; }
+            let upd = v.updated || '—';
+            let daysGap = calculateDaysGap(currentDate, upd);
+            html += `<td><span class="days-badge">📅 ${upd}</span></td>`;
+            html += `<td>${daysGap}</td>`;
+            html += `</tr>`;
+        }
+        tbody.innerHTML = html;
+    }
+    
+    // JSON ফাইল লোড করার ফাংশন
+    async function loadAllJsonFiles() {
+        if (!JSON_FOLDER_URL) {
+            document.getElementById('folderStatus').innerHTML = `❌ JSON_FOLDER_URL সেট করা হয়নি!`;
+            return;
+        }
+        
+        document.getElementById('currentUrlDisplay').innerHTML = JSON_FOLDER_URL;
+        let folderUrl = JSON_FOLDER_URL.endsWith('/') ? JSON_FOLDER_URL : JSON_FOLDER_URL + '/';
+        let loadedCount = 0;
+        
+        for (let date of AVAILABLE_DATES) {
+            let jsonUrl = folderUrl + date + '.json';
+            try {
+                let response = await fetch(jsonUrl);
+                if (response.ok) {
+                    let json = await response.json();
+                    let vehicles = Array.isArray(json) ? json : (json.vehicles || json.data || []);
+                    if (vehicles.length) {
+                        let formatted = vehicles.map(v => formatVehicle(v));
+                        allDataFiles[date] = { data: formatted, count: formatted.length };
+                        loadedCount++;
+                    }
+                } else {
+                    console.warn(`${date} পাওয়া যায়নি`);
+                }
+            } catch(e) {
+                console.warn(`${date} লোড করতে ব্যর্থ:`, e);
+            }
+        }
+        
+        if (loadedCount === 0) {
+            // ডেমো ডাটা দেখান
+            const demoData = [
+                { id: "1001", num: "ঢাকা মেট্রো-গ ১২-৩৪৫৬", url: "#", lock: "Y", jack: "Y", wrench: "Y", lever: "Y", pipe: "Y", tire: "Michelin", book: "Y", body: "Y", lights: "Y", tax: "Y", fitness: "Y", permit: "Y", reg: "Y", regAck: "Y", adv1: "Y", adv2: "Y", cam: "Y", sim: "Y", device: "Y", gps: "Y", sd: "Y", updated: "2026-04-21" },
+                { id: "1002", num: "চট্টগ্রাম মেট্রো-থ ৭৮-৯০১২", url: "#", lock: "Y", jack: "Y", wrench: "N", lever: "Y", pipe: "Y", tire: "Bridgestone", book: "Y", body: "Y", lights: "Y", tax: "Y", fitness: "Y", permit: "Y", reg: "Y", regAck: "Y", adv1: "Y", adv2: "N", cam: "Y", sim: "Y", device: "Y", gps: "Y", sd: "Y", updated: "2026-04-20" },
+                { id: "1003", num: "রাজশাহী মেট্রো-ক ৫৫-৭৭৮৮", url: "#", lock: "N", jack: "Y", wrench: "Y", lever: "N", pipe: "Y", tire: "Apollo", book: "N", body: "Y", lights: "Y", tax: "N", fitness: "Y", permit: "Y", reg: "Y", regAck: "N", adv1: "Y", adv2: "Y", cam: "Y", sim: "N", device: "Y", gps: "Y", sd: "Y", updated: "2026-04-19" }
+            ];
+            allDataFiles = {
+                "2026-04-22": { data: demoData.map(v => formatVehicle(v)), count: 3 }
+            };
+            saveToStorage();
+            updateMenu();
+            loadDateData("2026-04-22");
+            document.getElementById('folderStatus').innerHTML = `⚠️ কোন JSON ফাইল পাওয়া যায়নি! ডেমো ডাটা দেখাচ্ছে। লিংক: ${folderUrl}`;
+        } else {
+            saveToStorage();
+            updateMenu();
+            let dates = Object.keys(allDataFiles).sort().reverse();
+            if(dates.length) loadDateData(dates[0]);
+            document.getElementById('folderStatus').innerHTML = `✅ ${loadedCount} টি রিপোর্ট লোড হয়েছে (${folderUrl})`;
+        }
+    }
+    
+    window.deleteFile = function(date) {
+        if(confirm(`"${date}" ডিলিট করবেন?`)) {
+            delete allDataFiles[date];
+            saveToStorage();
+            updateMenu();
+            if(currentDate === date) { currentData = []; renderNormalTable(); document.getElementById('activeDateInfo').innerHTML = 'ডাটা মুছে ফেলা হয়েছে'; }
+            if(selectedOldDate === date || selectedNewDate === date) { selectedOldDate = null; selectedNewDate = null; document.getElementById('selectedDatesDisplay').style.display = 'none'; if(compareModeActive) document.getElementById('compareInfo').innerHTML = 'তুলনা মোড রিসেট হয়েছে'; }
+        }
+    };
+    
+    function toggleCompareMode() {
+        compareModeActive = !compareModeActive;
+        let btn = document.getElementById('toggleCompareBtn');
+        if(compareModeActive) {
+            btn.innerHTML = '🔴 তুলনা মোড অন';
+            btn.classList.add('active-mode');
+            document.getElementById('compareInfo').innerHTML = '📌 সাইডবার থেকে পুরনো তারিখ নির্বাচন করুন';
+            document.getElementById('selectedDatesDisplay').style.display = 'inline-block';
+            document.getElementById('selectedDatesDisplay').innerHTML = '📅 পুরনো: — | নতুন: —';
+            selectedOldDate = null; selectedNewDate = null;
+            refreshHighlight();
+        } else {
+            btn.innerHTML = '🔘 তুলনা মোড';
+            btn.classList.remove('active-mode');
+            document.getElementById('compareInfo').innerHTML = 'তুলনা মোড বন্ধ, সাধারণ ভিউ';
+            document.getElementById('selectedDatesDisplay').style.display = 'none';
+            selectedOldDate = null; selectedNewDate = null;
+            refreshHighlight();
+            if(currentDate && allDataFiles[currentDate]) loadDateData(currentDate);
+            else if(Object.keys(allDataFiles).length) loadDateData(Object.keys(allDataFiles)[0]);
+        }
+    }
+    
+    document.getElementById('toggleCompareBtn').addEventListener('click', toggleCompareMode);
+    document.getElementById('submitCompareBtn').addEventListener('click', submitComparison);
+    document.getElementById('searchInput').addEventListener('keyup', ()=>{ if(compareModeActive && latestCompareResult.length) renderCompareTable(selectedOldDate, selectedNewDate); else if(currentData.length) renderNormalTable(); });
+    
+    window.addEventListener('DOMContentLoaded', () => {
+        loadAllJsonFiles();
+    });
+</script>
+</body>
+</html>
